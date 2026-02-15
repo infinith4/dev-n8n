@@ -2,16 +2,17 @@ version: '3'
 
 services:
   apps:
-    container_name: github-template-node-ts
+    container_name: dev-n8n
     build: 
       context: .
       dockerfile: Dockerfile
+    privileged: true
     # ports:
     #   - 3200:4200
     tty: true
     volumes:
       - type: bind
-        source: ./src
+        source: .
         target: /src
     # environment:
     #   - WATCHPACK_POLLING=true
@@ -21,7 +22,7 @@ services:
     command: sleep infinity
     #network_mode: 'host'
     # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
-    network_mode: 'host' #service:db
+    # network_mode: 'host' #service:db
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
     # (Adding the "ports" property to this file will not forward from a Codespace.)
