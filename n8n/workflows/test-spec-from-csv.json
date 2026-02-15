@@ -1,0 +1,98 @@
+{
+  "name": "CSVからテスト仕様書一括生成",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-test-spec-from-csv",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "b2000001-0001-4000-b001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "generate-test-spec-from-csv"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || {};\n\nconst featureName = body.feature_name || 'Unknown Feature';\nconst author = body.author || 'N/A';\nconst csvData = body.csv_data || '';\n\n// Parse CSV: name,precondition,steps,expected,priority\nconst lines = csvData.trim().split('\\n');\nconst testCases = [];\n\nfor (let i = 0; i < lines.length; i++) {\n  const line = lines[i].trim();\n  if (!line) continue;\n  \n  // Skip header row if present\n  if (i === 0 && line.toLowerCase().includes('name')) continue;\n  \n  const cols = line.split(',').map(c => c.trim());\n  testCases.push({\n    name: cols[0] || '',\n    precondition: cols[1] || '-',\n    steps: cols[2] || '',\n    expected: cols[3] || '',\n    priority: cols[4] || 'Medium'\n  });\n}\n\nreturn [{ json: { feature_name: featureName, author, test_cases: testCases } }];"
+      },
+      "id": "b2000001-0001-4000-b001-000000000002",
+      "name": "CSV解析",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst featureName = input.feature_name;\nconst author = input.author;\nconst testCases = input.test_cases || [];\n\nconst now = new Date();\nconst dateStr = now.toISOString().split('T')[0];\n\nconst testCaseRows = testCases.map((tc, i) => {\n  const id = String(i + 1).padStart(3, '0');\n  return `| TC-${id} | ${tc.name} | ${tc.precondition} | ${tc.steps} | ${tc.expected} | ${tc.priority} | - |`;\n}).join('\\n');\n\nconst markdown = `# テスト仕様書: ${featureName}\n\n## 基本情報\n\n| 項目 | 内容 |\n|------|------|\n| 機能名 | ${featureName} |\n| 作成日 | ${dateStr} |\n| 作成者 | ${author} |\n| テストケース数 | ${testCases.length} |\n\n## テストケース\n\n| ID | テスト名 | 前提条件 | 手順 | 期待結果 | 優先度 | 結果 |\n|----|----------|----------|------|----------|--------|------|\n${testCaseRows}\n\n## テスト結果サマリ\n\n| 項目 | 件数 |\n|------|------|\n| 総テストケース数 | ${testCases.length} |\n| 成功 | - |\n| 失敗 | - |\n| 未実施 | ${testCases.length} |\n`;\n\nreturn [{ json: { success: true, feature_name: featureName, total_cases: testCases.length, markdown } }];"
+      },
+      "id": "b2000001-0001-4000-b001-000000000003",
+      "name": "Markdown生成",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "b2000001-0001-4000-b001-000000000004",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "CSV解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV解析": {
+      "main": [
+        [
+          {
+            "node": "Markdown生成",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown生成": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [
+    {
+      "name": "test-spec"
+    }
+  ]
+}

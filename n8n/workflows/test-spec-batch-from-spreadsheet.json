@@ -1,0 +1,88 @@
+{
+  "name": "手動トリガー: テスト仕様書テンプレート生成",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c3000001-0001-4000-c001-000000000001",
+      "name": "手動実行",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// テスト対象の機能一覧を定義\n// ここを編集して、テスト仕様書を生成したい機能を追加してください\nconst features = [\n  {\n    feature_name: 'ユーザーログイン',\n    description: 'メールアドレスとパスワードによるログイン機能',\n    category: 'Authentication',\n    priority: 'High',\n    test_cases: [\n      { name: '正常ログイン', precondition: '登録済みユーザーが存在する', steps: '1. メールアドレスを入力\\n2. パスワードを入力\\n3. ログインボタンをクリック', expected: 'ダッシュボードに遷移する', priority: 'High' },\n      { name: 'パスワード誤り', precondition: '登録済みユーザーが存在する', steps: '1. メールアドレスを入力\\n2. 誤ったパスワードを入力\\n3. ログインボタンをクリック', expected: 'エラーメッセージが表示される', priority: 'High' },\n      { name: '未入力チェック', precondition: '-', steps: '1. 何も入力せずログインボタンをクリック', expected: 'バリデーションエラーが表示される', priority: 'Medium' },\n      { name: 'アカウントロック', precondition: '登録済みユーザーが存在する', steps: '1. 5回連続で誤ったパスワードでログイン試行', expected: 'アカウントがロックされ、ロック通知が表示される', priority: 'High' }\n    ]\n  },\n  {\n    feature_name: 'ユーザー登録',\n    description: '新規ユーザーアカウント作成機能',\n    category: 'Authentication',\n    priority: 'High',\n    test_cases: [\n      { name: '正常登録', precondition: '-', steps: '1. 登録フォームに必要情報を入力\\n2. 登録ボタンをクリック', expected: '確認メールが送信され、登録完了メッセージが表示される', priority: 'High' },\n      { name: '重複メールアドレス', precondition: '同じメールアドレスで登録済み', steps: '1. 既に登録済みのメールアドレスで登録', expected: 'エラーメッセージが表示される', priority: 'High' },\n      { name: 'パスワード強度チェック', precondition: '-', steps: '1. 弱いパスワード(例: 123)で登録', expected: 'パスワード強度に関するエラーメッセージが表示される', priority: 'Medium' }\n    ]\n  }\n];\n\nreturn features.map(f => ({ json: f }));"
+      },
+      "id": "c3000001-0001-4000-c001-000000000002",
+      "name": "テスト対象機能一覧",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst featureName = input.feature_name;\nconst description = input.description || '';\nconst category = input.category || 'Functional';\nconst priority = input.priority || 'Medium';\nconst testCases = input.test_cases || [];\n\nconst now = new Date();\nconst dateStr = now.toISOString().split('T')[0];\n\nconst testCaseRows = testCases.map((tc, i) => {\n  const id = String(i + 1).padStart(3, '0');\n  return `| TC-${id} | ${tc.name} | ${tc.precondition || '-'} | ${tc.steps} | ${tc.expected} | ${tc.priority || priority} | - |`;\n}).join('\\n');\n\nconst markdown = `# テスト仕様書: ${featureName}\n\n## 基本情報\n\n| 項目 | 内容 |\n|------|------|\n| 機能名 | ${featureName} |\n| 作成日 | ${dateStr} |\n| カテゴリ | ${category} |\n| 優先度 | ${priority} |\n\n## 機能概要\n\n${description}\n\n## テスト環境\n\n| 項目 | 内容 |\n|------|------|\n| OS | - |\n| ブラウザ | - |\n| テストサーバー | - |\n| テストデータ | - |\n\n## 前提条件\n\n- (前提条件を記載)\n\n## テストケース\n\n| ID | テスト名 | 前提条件 | 手順 | 期待結果 | 優先度 | 結果 |\n|----|----------|----------|------|----------|--------|------|\n${testCaseRows}\n\n## テスト結果サマリ\n\n| 項目 | 件数 |\n|------|------|\n| 総テストケース数 | ${testCases.length} |\n| 成功 | - |\n| 失敗 | - |\n| 未実施 | ${testCases.length} |\n\n## 備考\n\n- \n`;\n\nreturn [{ json: { feature_name: featureName, markdown, date: dateStr } }];"
+      },
+      "id": "c3000001-0001-4000-c001-000000000003",
+      "name": "Markdown生成",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const { feature_name, markdown, date } = item.json;\n  results.push({\n    json: {\n      feature_name,\n      date,\n      markdown,\n      message: `テスト仕様書を生成しました: ${feature_name}`\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "c3000001-0001-4000-c001-000000000004",
+      "name": "結果まとめ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "手動実行": {
+      "main": [
+        [
+          {
+            "node": "テスト対象機能一覧",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "テスト対象機能一覧": {
+      "main": [
+        [
+          {
+            "node": "Markdown生成",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown生成": {
+      "main": [
+        [
+          {
+            "node": "結果まとめ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [
+    {
+      "name": "test-spec"
+    }
+  ]
+}

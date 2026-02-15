@@ -1,0 +1,75 @@
+{
+  "name": "テスト仕様書生成",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-test-spec",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1000001-0001-4000-a001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "generate-test-spec"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nconst featureName = input.body?.feature_name || 'Unknown Feature';\nconst featureDescription = input.body?.description || '';\nconst testCases = input.body?.test_cases || [];\nconst author = input.body?.author || 'N/A';\nconst priority = input.body?.priority || 'Medium';\nconst category = input.body?.category || 'Functional';\n\nconst now = new Date();\nconst dateStr = now.toISOString().split('T')[0];\n\nlet testCaseRows = '';\nif (testCases.length > 0) {\n  testCaseRows = testCases.map((tc, i) => {\n    const id = String(i + 1).padStart(3, '0');\n    return `| TC-${id} | ${tc.name || ''} | ${tc.precondition || '-'} | ${tc.steps || ''} | ${tc.expected || ''} | ${tc.priority || priority} | - |`;\n  }).join('\\n');\n} else {\n  testCaseRows = '| TC-001 | (テストケースを追加してください) | - | - | - | Medium | - |';\n}\n\nconst markdown = `# テスト仕様書: ${featureName}\n\n## 基本情報\n\n| 項目 | 内容 |\n|------|------|\n| 機能名 | ${featureName} |\n| 作成日 | ${dateStr} |\n| 作成者 | ${author} |\n| カテゴリ | ${category} |\n| 優先度 | ${priority} |\n\n## 機能概要\n\n${featureDescription}\n\n## テスト環境\n\n| 項目 | 内容 |\n|------|------|\n| OS | - |\n| ブラウザ | - |\n| テストサーバー | - |\n| テストデータ | - |\n\n## 前提条件\n\n- (前提条件を記載)\n\n## テストケース\n\n| ID | テスト名 | 前提条件 | 手順 | 期待結果 | 優先度 | 結果 |\n|----|----------|----------|------|----------|--------|------|\n${testCaseRows}\n\n## テスト結果サマリ\n\n| 項目 | 件数 |\n|------|------|\n| 総テストケース数 | ${testCases.length || 0} |\n| 成功 | - |\n| 失敗 | - |\n| 未実施 | ${testCases.length || 0} |\n\n## 備考\n\n- \n`;\n\nreturn [{ json: { markdown, feature_name: featureName, date: dateStr } }];"
+      },
+      "id": "a1000001-0001-4000-a001-000000000002",
+      "name": "テスト仕様書テンプレート生成",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, feature_name: $json.feature_name, date: $json.date, markdown: $json.markdown }, null, 2) }}",
+        "options": {}
+      },
+      "id": "a1000001-0001-4000-a001-000000000003",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "テスト仕様書テンプレート生成",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "テスト仕様書テンプレート生成": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [
+    {
+      "name": "test-spec"
+    }
+  ]
+}
