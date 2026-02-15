@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.genspark.ai)",
+      "WebFetch(domain:latenode.com)",
+      "WebFetch(domain:docs.n8n.io)",
+      "WebFetch(domain:n8n.io)",
+      "Bash(codex:*)"
+    ]
+  }
+}

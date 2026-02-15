@@ -1,0 +1,208 @@
+{
+  "name": "WBS: Sheets to Intermediate File (Phase 1)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "wbs_sheet_id",
+              "value": "1Pb2WoREUfUwp17j9UySfpx0O37Bhu-nq-GuBgjms9Bw"
+            },
+            {
+              "name": "wbs_sheet_name",
+              "value": "WBS"
+            },
+            {
+              "name": "wbs_sheet_range",
+              "value": "A:Z"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        460,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$json.wbs_sheet_id}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{$json.wbs_sheet_name || 'WBS'}}",
+          "mode": "name"
+        },
+        "range": "={{$json.wbs_sheet_range || 'A:Z'}}",
+        "options": {}
+      },
+      "id": "google_sheets_read",
+      "name": "Google Sheets (Read WBS)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        700,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const crypto = require('crypto');\n\nconst toStringOrNull = (v) => {\n  if (v === null || v === undefined) return null;\n  const s = String(v).trim();\n  return s ? s : null;\n};\n\nconst toNumber = (v) => {\n  const s = toStringOrNull(v);\n  if (!s) return null;\n  const n = Number(s);\n  return Number.isFinite(n) ? n : null;\n};\n\nreturn items.map((item) => {\n  const r = item.json;\n\n  const wbs_id = toStringOrNull(r.wbs_id ?? r.WBS_ID ?? r['WBS ID'] ?? r.id);\n  const title = toStringOrNull(r.title ?? r.Title ?? r.name ?? r.Name);\n\n  if (!wbs_id || !title) {\n    return {\n      json: {\n        _skip: true,\n        reason: 'missing_wbs_id_or_title',\n        raw: {\n          wbs_id: r.wbs_id ?? r.WBS_ID ?? r['WBS ID'] ?? r.id ?? null,\n          title: r.title ?? r.Title ?? r.name ?? r.Name ?? null\n        }\n      }\n    };\n  }\n\n  const normalized = {\n    _skip: false,\n    wbs_id,\n    title,\n    owner: toStringOrNull(r.owner ?? r.Owner ?? r.assignee),\n    status: toStringOrNull(r.status ?? r.Status),\n    start_date: toStringOrNull(r.start_date ?? r.Start ?? r.start),\n    end_date: toStringOrNull(r.end_date ?? r.End ?? r.end),\n    estimate_h: toNumber(r.estimate_h ?? r.estimate ?? r.Estimate),\n    actual_h: toNumber(r.actual_h ?? r.actual ?? r.Actual),\n    priority: toStringOrNull(r.priority ?? r.Priority),\n    parent_wbs_id: toStringOrNull(r.parent_wbs_id ?? r.parent_id ?? r.Parent),\n    milestone: toStringOrNull(r.milestone ?? r.Milestone),\n    url: toStringOrNull(r.url ?? r.URL ?? r.link),\n    source_updated_at: toStringOrNull(r.updated_at ?? r.source_updated_at)\n  };\n\n  // Hash normalized payload (excluding row_hash itself)\n  const { _skip, ...payloadObj } = normalized;\n  const payload = JSON.stringify(payloadObj);\n  const hash = crypto.createHash('sha256').update(payload).digest('hex');\n\n  return { json: { ...normalized, row_hash: `sha256:${hash}` } };\n});\n"
+      },
+      "id": "normalize_rows",
+      "name": "Normalize WBS Rows",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        760,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const pad2 = (n) => String(n).padStart(2, '0');\nconst now = new Date();\nconst ts = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}_${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;\n\n// NOTE: Avoid using $env.* here. Some n8n setups block env access in nodes.\nconst cfgItem = ($items('Config', 0, 0)[0] || { json: {} }).json;\nconst spreadsheetId = cfgItem.wbs_sheet_id || null;\nconst sheetName = cfgItem.wbs_sheet_name || 'WBS';\nconst range = cfgItem.wbs_sheet_range || 'A:Z';\n\nconst all = $input.all().map((i) => i.json);\nconst tasks = all\n  .filter((r) => !r._skip)\n  .map((r) => {\n    const { _skip, ...t } = r;\n    return t;\n  });\nconst errors = all\n  .filter((r) => r._skip)\n  .map((r) => {\n    const { _skip, ...e } = r;\n    return e;\n  });\n\nreturn [\n  {\n    json: {\n      fileName: `wbs_${ts}.json`,\n      content: {\n        generated_at: now.toISOString(),\n        source: {\n          type: 'google_sheets',\n          spreadsheet_id: spreadsheetId,\n          sheet_name: sheetName,\n          range\n        },\n        count: tasks.length,\n        error_count: errors.length,\n        tasks,\n        errors\n      }\n    }\n  }\n];\n"
+      },
+      "id": "build_output",
+      "name": "Build Export JSON",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "options": {
+          "fileName": "={{$json.fileName}}"
+        },
+        "dataPropertyName": "content",
+        "binaryPropertyName": "data"
+      },
+      "id": "json_to_binary",
+      "name": "JSON to Binary",
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "filePath": "=/exports/{{$binary.data.fileName}}"
+      },
+      "id": "write_file",
+      "name": "Write Export File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets (Read WBS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets (Read WBS)": {
+      "main": [
+        [
+          {
+            "node": "Normalize WBS Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize WBS Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Export JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Export JSON": {
+      "main": [
+        [
+          {
+            "node": "JSON to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON to Binary": {
+      "main": [
+        [
+          {
+            "node": "Write Export File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "00000000-0000-0000-0000-000000000000",
+  "meta": {
+    "templateCredsSetup": [
+      "Create a Google Sheets OAuth2 credential (any name).",
+      "Open the 'Google Sheets (Read WBS)' node and select that credential.",
+      "Edit the 'Config' node: wbs_sheet_id, wbs_sheet_name (optional), wbs_sheet_range (optional)."
+    ]
+  }
+}
