@@ -1,6 +1,22 @@
 {
-  "name": "src",
+  "name": "dev-n8n",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT"
+  "description": "Node.js + TypeScript local development project",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node index.ts",
+    "dev:watch": "nodemon --exec ts-node index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "lint": "eslint . --ext .ts",
+    "test": "jest"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0"
+  }
 }
